@@ -1,50 +1,13 @@
-version: 2
-jobs:
-  build:
-    docker:
-      - image: amazonlinux
-    steps:
-      - checkout
-  deploy:
-    docker:
-      - image: amazonlinux
-    steps:
-      - checkout
-      - run:
-          name: Get Pip
-          command: |
-            curl -O https://bootstrap.pypa.io/get-pip.py && python get-pip.py
-      - run:
-          name: Pip install AWS CLI
-          command: |
-            pip install awscli
-      - run:
-          name: Deploy Shared Resources via AWS CLI
-          command: |
-            if ! aws cloudformation describe-stacks --stack-name ghc-workshop-shared-resources --region us-west-2 ;  then
-              aws cloudformation deploy --stack-name ghc-workshop-shared-resources --template-file cfn/shared_resources.yml --capabilities CAPABILITY_NAMED_IAM --parameter-overrides WorkshopName="ghc-workshop" --region us-west-2
-            else
-              echo -e "Stack exists..."
-            fi
-          no_output_timeout: 20m
-      - run:
-          name: Deploy Application via AWS CLI
-          command: |
-            if ! aws cloudformation deploy --stack-name ghc-workshop-application-$CIRCLE_PROJECT_USERNAME --template-file cfn/application.yml --parameter-overrides SharedResourceStack="ghc-workshop-shared-resources" --region us-west-2 ; then
-              echo -e "No changes detected..."
-            else
-              aws cloudformation deploy --stack-name ghc-workshop-application-$CIRCLE_PROJECT_USERNAME --template-file cfn/application.yml --parameter-overrides SharedResourceStack="ghc-workshop-shared-resources" --region us-west-2 
-            fi
-          no_output_timeout: 20m
+# Use the latest 2.1 version of CircleCI pipeline process engine. See: https://circleci.com/docs/2.0/configuration-reference
+version: 2.1
+# Use a package of configuration called an orb.
+orbs:
+  # Declare a dependency on the welcome-orb
+  welcome: circleci/welcome-orb@0.4.1
+# Orchestrate or schedule a set of jobs
 workflows:
-  version: 2
-  build_approve_deploy:
+  # Name the workflow "welcome"
+  welcome:
+    # Run the welcome/run job in its own container
     jobs:
-      - build
-      - hold:
-          type: approval
-          requires:
-            - build
-      - deploy:
-          requires:
-            - hold
+      - welcome/run
